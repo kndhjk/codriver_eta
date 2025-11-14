@@ -1,0 +1,18 @@
+# PyCharm
+.idea/
+
+# 虚拟环境
+venv/
+.venv/
+
+# Python 缓存
+__pycache__/
+*.pyc
+
+# OSRM 大文件
+roadnet/*.osrm*
+
+# 原始轨迹 & 超大数据集
+data_raw/tdrive/*
+datasets/*.csv
+*.parquet
