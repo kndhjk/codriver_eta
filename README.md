@@ -82,22 +82,29 @@ Note: Large data and processed artifacts under roadnet/, datasets/, and data_raw
 Assuming beijing.osm.pbf has already been preprocessed into beijing.osrm (see Appendix if preprocessing is needed), OSRM is launched via Docker as:
 
 powershell
+```text
 docker run -d --name osrm-beijing -p 5000:5000 `
   -v "C:\Users\zyzmc\PycharmProjects\codriver_eta\roadnet:/data" osrm/osrm-backend `
   osrm-routed --algorithm mld --threads 4 --max-matching-size 5000 /data/beijing.osrm
+```
 Health check:
 
 powershell
+```text
 curl "http://localhost:5000/nearest/v1/driving/116.397,39.908?number=1"
+```
 If port 5000 is already in use, the old container can be removed and restarted:
 
 powershell
+```text
 docker rm -f osrm-beijing
+```
 # then rerun the docker run command above
 2) Map-match T-Drive (100 drivers)
 Raw T-Drive trajectories are map-matched to the OSRM road network. The script uses moderate chunk sizes and radius to avoid "Too many coordinates" errors and timeouts:
 
 powershell
+```text
 python .\data_proc\01_match_osrm.py `
   --in_dir ".\data_raw\tdrive" `
   --pattern "taxi_log_2008_by_id\*.txt" `
@@ -114,11 +121,14 @@ python .\data_proc\01_match_osrm.py `
   --workers 1 `
   --max_points_per_file 5000 `
   --max_files 100
+```
 Main outputs
+```text
 
 datasets/matched_legs.csv
 
 datasets/matched_legs.parquet
+```
 
 Practical notes
 
@@ -136,10 +146,12 @@ Ensure Docker has sufficient CPU/RAM.
 Unique links are compacted and trip-level link sequences are built:
 
 powershell
+```text
 python .\data_proc\02_build_links.py `
   --in_csv .\datasets\matched_legs.csv `
   --out_links .\datasets\links.parquet `
   --out_trip_links .\datasets\trip_links.parquet
+```
 Outputs
 
 datasets/links.parquet (and optional .csv export)
@@ -150,10 +162,12 @@ datasets/trip_links.parquet (and optional .csv export)
 Link-level speeds are aggregated over fixed 10-minute windows:
 
 powershell
+```text
 python .\data_proc\03_agg_speed_10min.py `
   --in_trip_links .\datasets\trip_links.parquet `
   --out_speed .\datasets\speed_10min.parquet `
   --window_min 10
+```
 Output
 
 datasets/link_speed_10min.parquet (and optional .csv)
@@ -162,6 +176,7 @@ datasets/link_speed_10min.parquet (and optional .csv)
 The T-Drive subset used here covers 2008-02-02 ~ 2008-02-08. Time-based Train/Val/Test splits are created as follows:
 
 powershell
+```text
 python .\data_proc\04_split_sets.py `
   --links .\datasets\links.parquet `
   --trip_links .\datasets\trip_links.parquet `
@@ -170,6 +185,7 @@ python .\data_proc\04_split_sets.py `
   --train_until "2008-02-06 00:00:00" `
   --val_until   "2008-02-07 00:00:00" `
   --test_until  "2008-02-09 00:00:00"
+```
 Outputs
 
 datasets/splits_trip.pkl
@@ -186,6 +202,7 @@ datasets/link_speed_test.parquet
 A compact Wide & Deep model is trained on (link_id, time_bucket) to predict avg_speed_mps. Training is launched as a module from the project root so that package imports (e.g. models/) resolve correctly:
 
 powershell
+```text
 python -m trainers.train_wdr `
   --links .\datasets\links.parquet `
   --speed_10min .\datasets\link_speed_10min.parquet `
@@ -195,6 +212,7 @@ python -m trainers.train_wdr `
   --num_workers 8 `
   --epochs 5 `
   --wide_cross true
+```
 Output
 
 outputs/wdr_simple.pt (model checkpoint; actual filename may depend on script arguments)
@@ -211,6 +229,7 @@ Ensure a CUDA-enabled PyTorch build (torch.version.cuda, torch.cuda.is_available
 Predicted link speeds are generated for all relevant (link_id, time_bucket) pairs and then accumulated along trip_links to compute ETAs. Missing pairs are “self-healed” via fallback statistics, and overall MAE/MAPE metrics are reported:
 
 powershell
+```text
 python -m evals.eval_eta_simple `
   --ckpt .\outputs\wdr_simple.pt `
   --links .\datasets\links.parquet `
@@ -218,6 +237,7 @@ python -m evals.eval_eta_simple `
   --speed_10min .\datasets\link_speed_10min.parquet `
   --out_pred_speed .\outputs\pred_speed_10min.parquet `
   --out_eta_table .\outputs\tables\eta_overall.csv
+```
 Outputs
 
 outputs/pred_speed_10min.parquet
@@ -279,16 +299,20 @@ If the OSRM graph files have not yet been prepared, they can be generated from b
 
 powershell
 # 1) Extract
+```text
 docker run --rm -v "C:\Users\zyzmc\PycharmProjects\codriver_eta\roadnet:/data" osrm/osrm-backend `
   osrm-extract -p /opt/car.lua /data/beijing.osm.pbf
-
+```
 # 2) Partition
+```text
 docker run --rm -v "C:\Users\zyzmc\PycharmProjects\codriver_eta\roadnet:/data" osrm/osrm-backend `
   osrm-partition /data/beijing.osrm
-
+```
 # 3) Customize
+```text
 docker run --rm -v "C:\Users\zyzmc\PycharmProjects\codriver_eta\roadnet:/data" osrm/osrm-backend `
   osrm-customize /data/beijing.osrm
+```
 After these steps, return to Start OSRM (routing & map-matching) and launch osrm-routed.
 
 About Large data and OSRM files (not included in this repo)
