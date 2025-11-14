@@ -78,7 +78,7 @@ codriver_eta/
     figs/
 Note: Large data and processed artifacts under roadnet/, datasets/, and data_raw/ are not stored in this GitHub repo due to size limits. See About large data and OSRM files.
 
-1) Start OSRM (routing & map-matching)
+##1) Start OSRM (routing & map-matching)
 Assuming beijing.osm.pbf has already been preprocessed into beijing.osrm (see Appendix if preprocessing is needed), OSRM is launched via Docker as:
 
 powershell
